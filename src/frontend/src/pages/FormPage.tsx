@@ -119,8 +119,13 @@ function Field({
   );
 }
 
+type InsuranceOption = "CONSIGNOR" | "CONSIGNEE" | "CONSIGNOR/CONSIGNEE";
+
 export default function FormPage() {
   const [form, setForm] = useState<ConsignmentNote>(emptyForm());
+  const [insuranceCoveredBy, setInsuranceCoveredBy] = useState<InsuranceOption>(
+    "CONSIGNOR/CONSIGNEE",
+  );
   const { mutateAsync: save, isPending } = useCreateConsignmentNote();
 
   const update = (field: keyof ConsignmentNote) => (value: string) =>
@@ -145,7 +150,7 @@ export default function FormPage() {
       toast.error("Please fill in G.C. No. before generating PDF");
       return;
     }
-    generateConsignmentPdf(form);
+    generateConsignmentPdf(form, insuranceCoveredBy);
   };
 
   const sectionVariants = {
@@ -155,7 +160,6 @@ export default function FormPage() {
 
   return (
     <div className="max-w-4xl mx-auto px-4 py-8">
-      {/* Header Card - Dark Navy Blue matching the reference screenshot */}
       <motion.div
         initial={{ opacity: 0, y: -12 }}
         animate={{ opacity: 1, y: 0 }}
@@ -185,7 +189,7 @@ export default function FormPage() {
           </div>
           <div className="text-right text-xs text-white/80">
             <div className="font-bold text-white">GST: 27AAJF1355P1ZQ</div>
-            <div className="text-white/80">PAN: AAJF1355SP</div>
+            <div className="text-white/80">PAN: AAJFI3555P</div>
           </div>
         </div>
       </motion.div>
@@ -196,7 +200,6 @@ export default function FormPage() {
         animate="visible"
         className="space-y-6"
       >
-        {/* Shipment Info */}
         <motion.section
           variants={sectionVariants}
           className="bg-white rounded-xl border border-gray-200 shadow-sm p-6"
@@ -248,7 +251,6 @@ export default function FormPage() {
           </FieldGroup>
         </motion.section>
 
-        {/* Consignor + Consignee */}
         <motion.section
           variants={sectionVariants}
           className="grid md:grid-cols-2 gap-4"
@@ -315,7 +317,36 @@ export default function FormPage() {
           </div>
         </motion.section>
 
-        {/* Goods Details */}
+        {/* Insurance Covered By */}
+        <motion.section
+          variants={sectionVariants}
+          className="bg-white rounded-xl border border-gray-200 shadow-sm p-6"
+        >
+          <SectionTitle>Insurance Covered By</SectionTitle>
+          <div className="flex gap-3 flex-wrap">
+            {(["CONSIGNOR", "CONSIGNEE", "CONSIGNOR/CONSIGNEE"] as const).map(
+              (option) => (
+                <button
+                  key={option}
+                  type="button"
+                  data-ocid="insurance.toggle"
+                  onClick={() => setInsuranceCoveredBy(option)}
+                  className={`px-5 py-2 rounded-lg border-2 text-sm font-semibold tracking-wide transition-all duration-150 flex items-center gap-2 ${
+                    insuranceCoveredBy === option
+                      ? "bg-[#1a3a5c] text-white border-[#1a3a5c] shadow-md"
+                      : "bg-white text-gray-700 border-gray-300 hover:border-[#1a3a5c]/50"
+                  }`}
+                >
+                  <span>
+                    {insuranceCoveredBy === option ? "\u2611" : "\u2610"}
+                  </span>
+                  {option}
+                </button>
+              ),
+            )}
+          </div>
+        </motion.section>
+
         <motion.section
           variants={sectionVariants}
           className="bg-white rounded-xl border border-gray-200 shadow-sm p-6"
@@ -352,7 +383,6 @@ export default function FormPage() {
           </FieldGroup>
         </motion.section>
 
-        {/* Invoice */}
         <motion.section
           variants={sectionVariants}
           className="bg-white rounded-xl border border-gray-200 shadow-sm p-6"
@@ -386,7 +416,6 @@ export default function FormPage() {
           </FieldGroup>
         </motion.section>
 
-        {/* Weight & Rate */}
         <motion.section
           variants={sectionVariants}
           className="bg-white rounded-xl border border-gray-200 shadow-sm p-6"
@@ -420,7 +449,6 @@ export default function FormPage() {
           </FieldGroup>
         </motion.section>
 
-        {/* Charges */}
         <motion.section
           variants={sectionVariants}
           className="bg-white rounded-xl border border-gray-200 shadow-sm p-6"
@@ -488,7 +516,6 @@ export default function FormPage() {
           </FieldGroup>
         </motion.section>
 
-        {/* Payment */}
         <motion.section
           variants={sectionVariants}
           className="bg-white rounded-xl border border-gray-200 shadow-sm p-6"
@@ -539,7 +566,6 @@ export default function FormPage() {
           />
         </motion.section>
 
-        {/* Billed To */}
         <motion.section
           variants={sectionVariants}
           className="bg-white rounded-xl border border-gray-200 shadow-sm p-6"
@@ -550,7 +576,7 @@ export default function FormPage() {
               <button
                 key={option}
                 type="button"
-                data-ocid={"billed.toggle"}
+                data-ocid="billed.toggle"
                 onClick={() => update("billedTo")(option)}
                 className={`px-6 py-2 rounded-lg border-2 text-sm font-bold tracking-wide transition-all duration-150 ${
                   form.billedTo === option
@@ -564,7 +590,6 @@ export default function FormPage() {
           </div>
         </motion.section>
 
-        {/* Action Buttons */}
         <motion.div
           variants={sectionVariants}
           className="flex flex-col sm:flex-row gap-4 pt-2 pb-8"
