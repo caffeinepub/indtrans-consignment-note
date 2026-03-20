@@ -1,13 +1,23 @@
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { FileText, Loader2, Save } from "lucide-react";
 import { motion } from "motion/react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import type { ConsignmentNote } from "../backend.d";
-import { useCreateConsignmentNote } from "../hooks/useQueries";
+import {
+  useCreateConsignmentNote,
+  useGetAllConsignmentNotes,
+} from "../hooks/useQueries";
 import { generateConsignmentPdf } from "../utils/generatePdf";
 
 const emptyForm = (): ConsignmentNote => ({
@@ -43,7 +53,7 @@ const emptyForm = (): ConsignmentNote => ({
   amountPaidRs: "",
   amountPaidP: "",
   remarks: "",
-  billedTo: "TO PAY",
+  billedTo: "TO BE BILLED",
 });
 
 function SectionTitle({ children }: { children: React.ReactNode }) {
@@ -123,13 +133,41 @@ type InsuranceOption = "CONSIGNOR" | "CONSIGNEE" | "CONSIGNOR/CONSIGNEE";
 
 export default function FormPage() {
   const [form, setForm] = useState<ConsignmentNote>(emptyForm());
+  const [isEditMode, setIsEditMode] = useState(false);
   const [insuranceCoveredBy, setInsuranceCoveredBy] = useState<InsuranceOption>(
     "CONSIGNOR/CONSIGNEE",
   );
   const { mutateAsync: save, isPending } = useCreateConsignmentNote();
+  const { data: allNotes = [] } = useGetAllConsignmentNotes();
+
+  // On mount, check if there's a record to edit from sessionStorage
+  useEffect(() => {
+    const raw = sessionStorage.getItem("editRecord");
+    if (raw) {
+      try {
+        const record: ConsignmentNote = JSON.parse(raw);
+        setForm(record);
+        setIsEditMode(true);
+        sessionStorage.removeItem("editRecord");
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      } catch {
+        // ignore
+      }
+    }
+  }, []);
 
   const update = (field: keyof ConsignmentNote) => (value: string) =>
     setForm((prev) => ({ ...prev, [field]: value }));
+
+  const handleLoadFromRecord = (gcNo: string) => {
+    const record = allNotes.find((n: ConsignmentNote) => n.gcNo === gcNo);
+    if (!record) return;
+    setForm({ ...record, gcNo: "" });
+    setIsEditMode(false);
+    toast.info(
+      `Loaded data from GC No. ${gcNo} — enter a new GC No. to save as a new record.`,
+    );
+  };
 
   const handleSave = async () => {
     if (!form.gcNo.trim()) {
@@ -138,8 +176,13 @@ export default function FormPage() {
     }
     try {
       await save(form);
-      toast.success("Consignment note saved successfully!");
+      toast.success(
+        isEditMode
+          ? "Record updated successfully!"
+          : "Consignment note saved successfully!",
+      );
       setForm(emptyForm());
+      setIsEditMode(false);
     } catch {
       toast.error("Failed to save. Please try again.");
     }
@@ -193,6 +236,59 @@ export default function FormPage() {
           </div>
         </div>
       </motion.div>
+
+      {/* Edit mode banner */}
+      {isEditMode && (
+        <motion.div
+          initial={{ opacity: 0, y: -8 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="mb-4 px-4 py-3 rounded-xl bg-amber-50 border border-amber-300 text-amber-800 text-sm font-medium flex items-center justify-between"
+        >
+          <span>
+            Editing record: <strong>{form.gcNo}</strong>. Save to update this
+            record.
+          </span>
+          <button
+            type="button"
+            onClick={() => {
+              setForm(emptyForm());
+              setIsEditMode(false);
+            }}
+            className="ml-4 text-xs underline text-amber-700 hover:text-amber-900"
+          >
+            Cancel
+          </button>
+        </motion.div>
+      )}
+
+      {/* Load from saved record */}
+      {allNotes.length > 0 && !isEditMode && (
+        <motion.div
+          initial={{ opacity: 0, y: -8 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="mb-6 bg-white rounded-xl border border-gray-200 shadow-sm p-4 flex flex-col sm:flex-row items-start sm:items-center gap-3"
+        >
+          <span className="text-sm font-semibold text-gray-700 whitespace-nowrap">
+            Load from saved record:
+          </span>
+          <Select onValueChange={handleLoadFromRecord}>
+            <SelectTrigger
+              data-ocid="load.record.select"
+              className="flex-1 h-9 text-sm bg-white"
+            >
+              <SelectValue placeholder="Select a saved record to pre-fill..." />
+            </SelectTrigger>
+            <SelectContent>
+              {allNotes.map((note: ConsignmentNote) => (
+                <SelectItem key={note.gcNo} value={note.gcNo}>
+                  {note.gcNo} &mdash; {note.consignorName || "(no consignor)"}{" "}
+                  &rarr; {note.toCity || "(no city)"} [{note.date}]
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </motion.div>
+      )}
 
       <motion.div
         variants={{ visible: { transition: { staggerChildren: 0.08 } } }}
@@ -606,7 +702,8 @@ export default function FormPage() {
               </>
             ) : (
               <>
-                <Save className="mr-2 h-4 w-4" /> Save Record
+                <Save className="mr-2 h-4 w-4" />{" "}
+                {isEditMode ? "Update Record" : "Save Record"}
               </>
             )}
           </Button>

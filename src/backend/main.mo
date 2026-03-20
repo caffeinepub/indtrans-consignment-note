@@ -39,20 +39,18 @@ actor {
     billedTo : Text;
   };
 
-  var stableNotes : [(Text, ConsignmentNote)] = [];
+  stable var stableNotes : [(Text, ConsignmentNote)] = [];
 
-  let consignmentNotes = Map.empty<Text, ConsignmentNote>();
-
-  // Restore from stable storage on startup
-  for ((k, v) in stableNotes.vals()) {
-    consignmentNotes.add(k, v);
-  };
+  var consignmentNotes = Map.empty<Text, ConsignmentNote>();
 
   system func preupgrade() {
     stableNotes := consignmentNotes.entries().toArray();
   };
 
   system func postupgrade() {
+    for ((k, v) in stableNotes.vals()) {
+      consignmentNotes.add(k, v);
+    };
     stableNotes := [];
   };
 
@@ -127,7 +125,6 @@ actor {
       billedTo;
     };
 
-    // Insert or update (overwrite duplicate GC No.)
     ignore consignmentNotes.remove(gcNo);
     consignmentNotes.add(gcNo, consignmentNote);
   };

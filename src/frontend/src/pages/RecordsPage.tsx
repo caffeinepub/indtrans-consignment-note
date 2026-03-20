@@ -2,7 +2,8 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
-import { FileText, Package, Search } from "lucide-react";
+import { useNavigate } from "@tanstack/react-router";
+import { FileText, Package, Pencil, Search } from "lucide-react";
 import { motion } from "motion/react";
 import { useState } from "react";
 import type { ConsignmentNote } from "../backend.d";
@@ -18,6 +19,7 @@ const billedBadgeVariant = (billed: string) => {
 export default function RecordsPage() {
   const { data: notes = [], isLoading } = useGetAllConsignmentNotes();
   const [search, setSearch] = useState("");
+  const navigate = useNavigate();
 
   const filtered = notes.filter(
     (n: ConsignmentNote) =>
@@ -26,6 +28,11 @@ export default function RecordsPage() {
       n.fromCity.toLowerCase().includes(search.toLowerCase()) ||
       n.toCity.toLowerCase().includes(search.toLowerCase()),
   );
+
+  const handleEdit = (note: ConsignmentNote) => {
+    sessionStorage.setItem("editRecord", JSON.stringify(note));
+    navigate({ to: "/" });
+  };
 
   return (
     <div className="max-w-5xl mx-auto px-4 py-8">
@@ -137,16 +144,28 @@ export default function RecordsPage() {
                       ₹{note.grandTotal}
                     </span>
                   )}
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    data-ocid={`records.item.${idx + 1}`}
-                    onClick={() => generateConsignmentPdf(note)}
-                    className="h-8 text-xs gap-1.5"
-                  >
-                    <FileText className="w-3.5 h-3.5" />
-                    View / Print PDF
-                  </Button>
+                  <div className="flex gap-2">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      data-ocid={`records.item.edit.${idx + 1}`}
+                      onClick={() => handleEdit(note)}
+                      className="h-8 text-xs gap-1.5 border-amber-400 text-amber-700 hover:bg-amber-50"
+                    >
+                      <Pencil className="w-3.5 h-3.5" />
+                      Edit
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      data-ocid={`records.item.${idx + 1}`}
+                      onClick={() => generateConsignmentPdf(note)}
+                      className="h-8 text-xs gap-1.5"
+                    >
+                      <FileText className="w-3.5 h-3.5" />
+                      View / Print PDF
+                    </Button>
+                  </div>
                 </div>
               </div>
             </motion.div>
