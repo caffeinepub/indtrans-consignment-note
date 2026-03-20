@@ -15,6 +15,10 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import type { ConsignmentNote } from "../backend.d";
 import {
+  AutocompleteField,
+  AutocompleteTextarea,
+} from "../components/AutocompleteField";
+import {
   useCreateConsignmentNote,
   useGetAllConsignmentNotes,
 } from "../hooks/useQueries";
@@ -139,6 +143,16 @@ export default function FormPage() {
   );
   const { mutateAsync: save, isPending } = useCreateConsignmentNote();
   const { data: allNotes = [] } = useGetAllConsignmentNotes();
+
+  // Helper: get unique values for a given field from saved records
+  const unique = (field: keyof ConsignmentNote): string[] =>
+    [
+      ...new Set(
+        allNotes
+          .map((n: ConsignmentNote) => String(n[field] ?? ""))
+          .filter(Boolean),
+      ),
+    ] as string[];
 
   // On mount, check if there's a record to edit from sessionStorage
   useEffect(() => {
@@ -320,29 +334,32 @@ export default function FormPage() {
               type="date"
               required
             />
-            <Field
+            <AutocompleteField
               label="From City"
               id="fromCity"
               ocid="from.input"
               value={form.fromCity}
               onChange={update("fromCity")}
               placeholder="Mumbai"
+              suggestions={unique("fromCity")}
             />
-            <Field
+            <AutocompleteField
               label="To City"
               id="toCity"
               ocid="to.input"
               value={form.toCity}
               onChange={update("toCity")}
               placeholder="Delhi"
+              suggestions={unique("toCity")}
             />
-            <Field
+            <AutocompleteField
               label="Truck No."
               id="truckNo"
               ocid="truck.input"
               value={form.truckNo}
               onChange={update("truckNo")}
               placeholder="MH12AB1234"
+              suggestions={unique("truckNo")}
             />
           </FieldGroup>
         </motion.section>
@@ -354,60 +371,64 @@ export default function FormPage() {
           <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
             <SectionTitle>Consignor (Sender)</SectionTitle>
             <div className="space-y-3">
-              <Field
+              <AutocompleteField
                 label="Name"
                 id="consignorName"
                 ocid="consignor.name.input"
                 value={form.consignorName}
                 onChange={update("consignorName")}
                 placeholder="Company / Person Name"
+                suggestions={unique("consignorName")}
               />
-              <Field
+              <AutocompleteTextarea
                 label="Address"
                 id="consignorAddress"
                 ocid="consignor.textarea"
                 value={form.consignorAddress}
                 onChange={update("consignorAddress")}
                 placeholder="Full address..."
-                multiline
+                suggestions={unique("consignorAddress")}
               />
-              <Field
+              <AutocompleteField
                 label="GST No."
                 id="consignorGST"
                 ocid="consignor.gst.input"
                 value={form.consignorGST}
                 onChange={update("consignorGST")}
                 placeholder="27AAAAA0000A1ZX"
+                suggestions={unique("consignorGST")}
               />
             </div>
           </div>
           <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
             <SectionTitle>Consignee (Receiver)</SectionTitle>
             <div className="space-y-3">
-              <Field
+              <AutocompleteField
                 label="Name"
                 id="consigneeName"
                 ocid="consignee.name.input"
                 value={form.consigneeName}
                 onChange={update("consigneeName")}
                 placeholder="Company / Person Name"
+                suggestions={unique("consigneeName")}
               />
-              <Field
+              <AutocompleteTextarea
                 label="Address"
                 id="consigneeAddress"
                 ocid="consignee.textarea"
                 value={form.consigneeAddress}
                 onChange={update("consigneeAddress")}
                 placeholder="Full address..."
-                multiline
+                suggestions={unique("consigneeAddress")}
               />
-              <Field
+              <AutocompleteField
                 label="GST No."
                 id="consigneeGST"
                 ocid="consignee.gst.input"
                 value={form.consigneeGST}
                 onChange={update("consigneeGST")}
                 placeholder="27AAAAA0000A1ZX"
+                suggestions={unique("consigneeGST")}
               />
             </div>
           </div>
@@ -450,14 +471,14 @@ export default function FormPage() {
           <SectionTitle>Goods Details</SectionTitle>
           <FieldGroup className="grid-cols-1 sm:grid-cols-3">
             <div className="sm:col-span-1">
-              <Field
+              <AutocompleteTextarea
                 label="Description (Said to Contain)"
                 id="description"
                 ocid="goods.description.textarea"
                 value={form.description}
                 onChange={update("description")}
                 placeholder="e.g. Electronics, Furniture..."
-                multiline
+                suggestions={unique("description")}
               />
             </div>
             <Field
@@ -468,13 +489,14 @@ export default function FormPage() {
               onChange={update("noOfArticles")}
               placeholder="e.g. 5"
             />
-            <Field
+            <AutocompleteField
               label="Mode of Packing"
               id="modePacking"
               ocid="goods.packing.input"
               value={form.modePacking}
               onChange={update("modePacking")}
               placeholder="e.g. Boxes, Cartons"
+              suggestions={unique("modePacking")}
             />
           </FieldGroup>
         </motion.section>
@@ -534,13 +556,14 @@ export default function FormPage() {
               onChange={update("weightChanded")}
               placeholder="0.00"
             />
-            <Field
+            <AutocompleteField
               label="Rate (Rs. per Kg/MT)"
               id="rate"
               ocid="rate.input"
               value={form.rate}
               onChange={update("rate")}
               placeholder="0.00"
+              suggestions={unique("rate")}
             />
           </FieldGroup>
         </motion.section>
