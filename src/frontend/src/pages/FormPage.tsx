@@ -15,10 +15,6 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import type { ConsignmentNote } from "../backend.d";
 import {
-  AutocompleteField,
-  AutocompleteTextarea,
-} from "../components/AutocompleteField";
-import {
   useCreateConsignmentNote,
   useGetAllConsignmentNotes,
 } from "../hooks/useQueries";
@@ -133,6 +129,65 @@ function Field({
   );
 }
 
+/** A name field with a dropdown to pick from saved records, auto-filling address + GST */
+function NameField({
+  label,
+  id,
+  ocid,
+  value,
+  onChange,
+  onSelectSaved,
+  savedNames,
+}: {
+  label: string;
+  id: string;
+  ocid: string;
+  value: string;
+  onChange: (v: string) => void;
+  onSelectSaved: (name: string) => void;
+  savedNames: string[];
+}) {
+  return (
+    <div className="space-y-1">
+      <Label
+        htmlFor={id}
+        className="text-xs font-semibold text-gray-600 uppercase tracking-wide"
+      >
+        {label}
+      </Label>
+      {savedNames.length > 0 && (
+        <Select
+          onValueChange={(v) => {
+            if (v) onSelectSaved(v);
+          }}
+        >
+          <SelectTrigger
+            className="h-8 text-xs bg-blue-50 border-blue-200 text-blue-700 no-print"
+            data-ocid={`${ocid}.dropdown`}
+          >
+            <SelectValue placeholder="Select from saved..." />
+          </SelectTrigger>
+          <SelectContent>
+            {savedNames.map((name) => (
+              <SelectItem key={name} value={name}>
+                {name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      )}
+      <Input
+        id={id}
+        data-ocid={ocid}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder="Company / Person Name"
+        className="text-sm h-9 bg-white"
+      />
+    </div>
+  );
+}
+
 type InsuranceOption = "CONSIGNOR" | "CONSIGNEE" | "CONSIGNOR/CONSIGNEE";
 
 export default function FormPage() {
@@ -144,15 +199,23 @@ export default function FormPage() {
   const { mutateAsync: save, isPending } = useCreateConsignmentNote();
   const { data: allNotes = [] } = useGetAllConsignmentNotes();
 
-  // Helper: get unique values for a given field from saved records
-  const unique = (field: keyof ConsignmentNote): string[] =>
-    [
-      ...new Set(
-        allNotes
-          .map((n: ConsignmentNote) => String(n[field] ?? ""))
-          .filter(Boolean),
-      ),
-    ] as string[];
+  // Unique consignor names from saved records
+  const uniqueConsignorNames: string[] = [
+    ...new Set(
+      allNotes
+        .map((n: ConsignmentNote) => n.consignorName)
+        .filter(Boolean) as string[],
+    ),
+  ];
+
+  // Unique consignee names from saved records
+  const uniqueConsigneeNames: string[] = [
+    ...new Set(
+      allNotes
+        .map((n: ConsignmentNote) => n.consigneeName)
+        .filter(Boolean) as string[],
+    ),
+  ];
 
   // On mount, check if there's a record to edit from sessionStorage
   useEffect(() => {
@@ -181,6 +244,37 @@ export default function FormPage() {
     toast.info(
       `Loaded data from GC No. ${gcNo} — enter a new GC No. to save as a new record.`,
     );
+  };
+
+  // Auto-fill consignor fields from saved record by name
+  const handleSelectConsignor = (name: string) => {
+    // Find the most recent record with this consignor name
+    const record = [...allNotes]
+      .reverse()
+      .find((n: ConsignmentNote) => n.consignorName === name);
+    if (record) {
+      setForm((prev) => ({
+        ...prev,
+        consignorName: record.consignorName,
+        consignorAddress: record.consignorAddress,
+        consignorGST: record.consignorGST,
+      }));
+    }
+  };
+
+  // Auto-fill consignee fields from saved record by name
+  const handleSelectConsignee = (name: string) => {
+    const record = [...allNotes]
+      .reverse()
+      .find((n: ConsignmentNote) => n.consigneeName === name);
+    if (record) {
+      setForm((prev) => ({
+        ...prev,
+        consigneeName: record.consigneeName,
+        consigneeAddress: record.consigneeAddress,
+        consigneeGST: record.consigneeGST,
+      }));
+    }
   };
 
   const handleSave = async () => {
@@ -334,32 +428,29 @@ export default function FormPage() {
               type="date"
               required
             />
-            <AutocompleteField
+            <Field
               label="From City"
               id="fromCity"
               ocid="from.input"
               value={form.fromCity}
               onChange={update("fromCity")}
               placeholder="Mumbai"
-              suggestions={unique("fromCity")}
             />
-            <AutocompleteField
+            <Field
               label="To City"
               id="toCity"
               ocid="to.input"
               value={form.toCity}
               onChange={update("toCity")}
               placeholder="Delhi"
-              suggestions={unique("toCity")}
             />
-            <AutocompleteField
+            <Field
               label="Truck No."
               id="truckNo"
               ocid="truck.input"
               value={form.truckNo}
               onChange={update("truckNo")}
               placeholder="MH12AB1234"
-              suggestions={unique("truckNo")}
             />
           </FieldGroup>
         </motion.section>
@@ -371,64 +462,62 @@ export default function FormPage() {
           <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
             <SectionTitle>Consignor (Sender)</SectionTitle>
             <div className="space-y-3">
-              <AutocompleteField
+              <NameField
                 label="Name"
                 id="consignorName"
                 ocid="consignor.name.input"
                 value={form.consignorName}
                 onChange={update("consignorName")}
-                placeholder="Company / Person Name"
-                suggestions={unique("consignorName")}
+                onSelectSaved={handleSelectConsignor}
+                savedNames={uniqueConsignorNames}
               />
-              <AutocompleteTextarea
+              <Field
                 label="Address"
                 id="consignorAddress"
                 ocid="consignor.textarea"
                 value={form.consignorAddress}
                 onChange={update("consignorAddress")}
                 placeholder="Full address..."
-                suggestions={unique("consignorAddress")}
+                multiline
               />
-              <AutocompleteField
+              <Field
                 label="GST No."
                 id="consignorGST"
                 ocid="consignor.gst.input"
                 value={form.consignorGST}
                 onChange={update("consignorGST")}
                 placeholder="27AAAAA0000A1ZX"
-                suggestions={unique("consignorGST")}
               />
             </div>
           </div>
           <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
             <SectionTitle>Consignee (Receiver)</SectionTitle>
             <div className="space-y-3">
-              <AutocompleteField
+              <NameField
                 label="Name"
                 id="consigneeName"
                 ocid="consignee.name.input"
                 value={form.consigneeName}
                 onChange={update("consigneeName")}
-                placeholder="Company / Person Name"
-                suggestions={unique("consigneeName")}
+                onSelectSaved={handleSelectConsignee}
+                savedNames={uniqueConsigneeNames}
               />
-              <AutocompleteTextarea
+              <Field
                 label="Address"
                 id="consigneeAddress"
                 ocid="consignee.textarea"
                 value={form.consigneeAddress}
                 onChange={update("consigneeAddress")}
                 placeholder="Full address..."
-                suggestions={unique("consigneeAddress")}
+                multiline
               />
-              <AutocompleteField
+              <Field
                 label="GST No."
                 id="consigneeGST"
                 ocid="consignee.gst.input"
                 value={form.consigneeGST}
                 onChange={update("consigneeGST")}
                 placeholder="27AAAAA0000A1ZX"
-                suggestions={unique("consigneeGST")}
               />
             </div>
           </div>
@@ -471,14 +560,14 @@ export default function FormPage() {
           <SectionTitle>Goods Details</SectionTitle>
           <FieldGroup className="grid-cols-1 sm:grid-cols-3">
             <div className="sm:col-span-1">
-              <AutocompleteTextarea
+              <Field
                 label="Description (Said to Contain)"
                 id="description"
                 ocid="goods.description.textarea"
                 value={form.description}
                 onChange={update("description")}
                 placeholder="e.g. Electronics, Furniture..."
-                suggestions={unique("description")}
+                multiline
               />
             </div>
             <Field
@@ -489,14 +578,13 @@ export default function FormPage() {
               onChange={update("noOfArticles")}
               placeholder="e.g. 5"
             />
-            <AutocompleteField
+            <Field
               label="Mode of Packing"
               id="modePacking"
               ocid="goods.packing.input"
               value={form.modePacking}
               onChange={update("modePacking")}
               placeholder="e.g. Boxes, Cartons"
-              suggestions={unique("modePacking")}
             />
           </FieldGroup>
         </motion.section>
@@ -556,14 +644,13 @@ export default function FormPage() {
               onChange={update("weightChanded")}
               placeholder="0.00"
             />
-            <AutocompleteField
+            <Field
               label="Rate (Rs. per Kg/MT)"
               id="rate"
               ocid="rate.input"
               value={form.rate}
               onChange={update("rate")}
               placeholder="0.00"
-              suggestions={unique("rate")}
             />
           </FieldGroup>
         </motion.section>
